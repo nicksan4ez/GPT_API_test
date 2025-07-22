@@ -1,0 +1,275 @@
+{% extends "base.html" %}
+
+{% block title %}Отчет анализа - {{ report.channel_info.title if report.channel_info else 'Анализ' }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <!-- Заголовок отчета -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-success text-white">
+                <div class="row align-items-center">
+                    <div class="col">
+                        <h3 class="mb-0">
+                            <i class="fas fa-chart-line me-2"></i>
+                            Отчет анализа: {{ report.channel_info.title if report.channel_info else report.original_filename }}
+                        </h3>
+                        <small>Создан: {{ report.analysis_timestamp[:19] if report.analysis_timestamp else 'Неизвестно' }}</small>
+                    </div>
+                    <div class="col-auto">
+                        <a href="/download/{{ analysis_id }}" class="btn btn-light btn-sm me-2">
+                            <i class="fas fa-download me-1"></i>Скачать JSON
+                        </a>
+                        <a href="{{ url_for('index') }}" class="btn btn-outline-light btn-sm">
+                            <i class="fas fa-home me-1"></i>Главная
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Основная статистика -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card stats-card text-center">
+                    <div class="card-body">
+                        <i class="fas fa-comments fa-2x mb-2"></i>
+                        <h4>{{ "{:,}".format(report.total_messages) if report.total_messages else 'N/A' }}</h4>
+                        <small>Всего сообщений</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stats-card text-center">
+                    <div class="card-body">
+                        <i class="fas fa-font fa-2x mb-2"></i>
+                        <h4>{{ "{:,}".format(report.message_stats.total_chars) if report.message_stats and report.message_stats.total_chars else 'N/A' }}</h4>
+                        <small>Символов</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stats-card text-center">
+                    <div class="card-body">
+                        <i class="fas fa-clock fa-2x mb-2"></i>
+                        <h4>{{ "%.1f"|format(report.message_stats.average_length) if report.message_stats and report.message_stats.average_length else 'N/A' }}</h4>
+                        <small>Средняя длина</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stats-card text-center">
+                    <div class="card-body">
+                        <i class="fas fa-calendar fa-2x mb-2"></i>
+                        <h4>{{ report.time_analysis.date_range.days if report.time_analysis and report.time_analysis.date_range else 'N/A' }}</h4>
+                        <small>Дней активности</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Графики -->
+        <div class="row">
+            <!-- График активности по часам -->
+            {% if charts.hourly_activity %}
+            <div class="col-12 mb-4">
+                <div class="chart-container">
+                    <h5><i class="fas fa-clock me-2"></i>Активность по часам дня</h5>
+                    <div id="hourlyChart"></div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- График топ слов -->
+            {% if charts.top_words %}
+            <div class="col-lg-6 mb-4">
+                <div class="chart-container">
+                    <h5><i class="fas fa-font me-2"></i>Наиболее частые слова</h5>
+                    <div id="wordsChart"></div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- График статистики сообщений -->
+            {% if charts.message_length %}
+            <div class="col-lg-6 mb-4">
+                <div class="chart-container">
+                    <h5><i class="fas fa-ruler me-2"></i>Статистика длины сообщений</h5>
+                    <div id="lengthChart"></div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- График тональности -->
+            {% if charts.sentiment %}
+            <div class="col-lg-6 mb-4">
+                <div class="chart-container">
+                    <h5><i class="fas fa-heart me-2"></i>Анализ тональности</h5>
+                    <div id="sentimentChart"></div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Детальная информация -->
+        <div class="row">
+            <!-- Информация о канале -->
+            {% if report.channel_info %}
+            <div class="col-lg-6 mb-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-info-circle me-2"></i>
+                            Информация о канале
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <table class="table table-sm">
+                            <tr>
+                                <td><strong>Название:</strong></td>
+                                <td>{{ report.channel_info.title or 'Не указано' }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Тип:</strong></td>
+                                <td>{{ report.channel_info.type or 'Не указано' }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>ID:</strong></td>
+                                <td class="font-monospace">{{ report.channel_info.id or 'Не указано' }}</td>
+                            </tr>
+                            {% if report.channel_info.username %}
+                            <tr>
+                                <td><strong>Username:</strong></td>
+                                <td>@{{ report.channel_info.username }}</td>
+                            </tr>
+                            {% endif %}
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Топ слова в таблице -->
+            {% if report.word_analysis and report.word_analysis.top_words %}
+            <div class="col-lg-6 mb-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-list-ol me-2"></i>
+                            Топ-15 слов
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Слово</th>
+                                        <th>Частота</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for word, count in report.word_analysis.top_words[:15] %}
+                                    <tr>
+                                        <td>{{ loop.index }}</td>
+                                        <td><code>{{ word }}</code></td>
+                                        <td><span class="badge bg-primary">{{ count }}</span></td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Временная статистика -->
+        {% if report.time_analysis %}
+        <div class="row">
+            <div class="col-12 mb-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-calendar-alt me-2"></i>
+                            Временная статистика
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            {% if report.time_analysis.date_range %}
+                            <div class="col-md-4">
+                                <h6>Период активности</h6>
+                                <p class="text-muted">
+                                    <strong>От:</strong> {{ report.time_analysis.date_range.start_date[:10] if report.time_analysis.date_range.start_date else 'N/A' }}<br>
+                                    <strong>До:</strong> {{ report.time_analysis.date_range.end_date[:10] if report.time_analysis.date_range.end_date else 'N/A' }}<br>
+                                    <strong>Дней:</strong> {{ report.time_analysis.date_range.days or 'N/A' }}
+                                </p>
+                            </div>
+                            {% endif %}
+
+                            {% if report.time_analysis.most_active_hour %}
+                            <div class="col-md-4">
+                                <h6>Пик активности</h6>
+                                <p class="text-muted">
+                                    <strong>Час:</strong> {{ report.time_analysis.most_active_hour }}:00<br>
+                                    <strong>Сообщений:</strong> {{ report.time_analysis.most_active_hour_count or 'N/A' }}
+                                </p>
+                            </div>
+                            {% endif %}
+
+                            <div class="col-md-4">
+                                <h6>Средняя активность</h6>
+                                <p class="text-muted">
+                                    <strong>В день:</strong> {{ "%.1f"|format(report.time_analysis.avg_messages_per_day) if report.time_analysis.avg_messages_per_day else 'N/A' }}<br>
+                                    <strong>В час:</strong> {{ "%.1f"|format(report.time_analysis.avg_messages_per_hour) if report.time_analysis.avg_messages_per_hour else 'N/A' }}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Отрисовка графиков
+document.addEventListener('DOMContentLoaded', function() {
+    {% if charts.hourly_activity %}
+    const hourlyData = {{ charts.hourly_activity|safe }};
+    Plotly.newPlot('hourlyChart', hourlyData.data, hourlyData.layout, {responsive: true});
+    {% endif %}
+
+    {% if charts.top_words %}
+    const wordsData = {{ charts.top_words|safe }};
+    Plotly.newPlot('wordsChart', wordsData.data, wordsData.layout, {responsive: true});
+    {% endif %}
+
+    {% if charts.message_length %}
+    const lengthData = {{ charts.message_length|safe }};
+    Plotly.newPlot('lengthChart', lengthData.data, lengthData.layout, {responsive: true});
+    {% endif %}
+
+    {% if charts.sentiment %}
+    const sentimentData = {{ charts.sentiment|safe }};
+    Plotly.newPlot('sentimentChart', sentimentData.data, sentimentData.layout, {responsive: true});
+    {% endif %}
+});
+
+// Экспорт графиков
+function exportChart(chartId, filename) {
+    Plotly.downloadImage(chartId, {
+        format: 'png',
+        width: 1200,
+        height: 600,
+        filename: filename
+    });
+}
+</script>
+{% endblock %}

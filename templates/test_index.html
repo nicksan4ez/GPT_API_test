@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Анализатор Telegram Дампов - Тест</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-chart-line me-2"></i>
+                Анализатор Telegram Дампов
+            </a>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="alert alert-success">
+            <i class="fas fa-check-circle me-2"></i>
+            Веб-интерфейс работает! Версия для отладки.
+        </div>
+
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h4 class="mb-0">
+                            <i class="fas fa-upload me-2"></i>
+                            Загрузка дампа для анализа
+                        </h4>
+                    </div>
+                    <div class="card-body">
+                        <form action="/upload" method="post" enctype="multipart/form-data">
+                            <div class="mb-3">
+                                <label for="file" class="form-label">Выберите файл дампа:</label>
+                                <input type="file" class="form-control" id="file" name="file" accept=".json,.txt">
+                            </div>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-rocket me-2"></i>
+                                Начать анализ
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="card mt-4">
+                    <div class="card-header">
+                        <h5>Поддерживаемые форматы</h5>
+                    </div>
+                    <div class="card-body">
+                        <ul>
+                            <li>JSON файлы экспорта Telegram</li>
+                            <li>Текстовые файлы с сообщениями</li>
+                            <li>Максимальный размер: 100MB</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="card bg-primary text-white">
+                    <div class="card-body text-center">
+                        <i class="fas fa-chart-bar fa-3x mb-3"></i>
+                        <h4>Анализ готов!</h4>
+                        <p>Загрузите файл для начала анализа</p>
+                    </div>
+                </div>
+
+                <div class="card mt-4">
+                    <div class="card-header">
+                        <h5>Возможности</h5>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-clock text-primary me-2"></i>Анализ по времени</li>
+                            <li><i class="fas fa-comment text-success me-2"></i>Частота слов</li>
+                            <li><i class="fas fa-chart-pie text-warning me-2"></i>Статистика</li>
+                            <li><i class="fas fa-download text-info me-2"></i>Экспорт результатов</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

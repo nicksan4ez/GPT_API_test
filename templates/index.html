@@ -1,0 +1,234 @@
+{% extends "base.html" %}
+
+{% block title %}Главная - Анализатор Telegram Дампов{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Форма загрузки -->
+    <div class="col-lg-8">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">
+                    <i class="fas fa-upload me-2"></i>
+                    Загрузка дампа для анализа
+                </h4>
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('upload_file') }}" method="post" enctype="multipart/form-data" id="uploadForm">
+                    <div class="upload-area mb-3" onclick="document.getElementById('file').click();">
+                        <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+                        <h5>Перетащите файл сюда или нажмите для выбора</h5>
+                        <p class="text-muted">Поддерживаются файлы: .json, .txt (максимум 100MB)</p>
+                        <input type="file" class="d-none" id="file" name="file" accept=".json,.txt" onchange="showFileInfo(this)">
+                    </div>
+
+                    <div class="file-info alert alert-info" style="display: none;"></div>
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary btn-lg" id="uploadBtn" disabled>
+                            <i class="fas fa-rocket me-2"></i>
+                            Начать анализ
+                        </button>
+                    </div>
+                </form>
+
+                <!-- Прогресс-бар -->
+                <div class="progress-container mt-3">
+                    <div class="progress">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+                    </div>
+                    <div class="text-center mt-2">
+                        <small class="text-muted">Загрузка и анализ файла...</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Информация о форматах -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Поддерживаемые форматы
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-file-code text-primary me-2"></i>JSON дампы</h6>
+                        <ul class="list-unstyled">
+                            <li>• Telegram Desktop экспорт</li>
+                            <li>• Telegram API дампы</li>
+                            <li>• Структурированные JSON файлы</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-file-alt text-success me-2"></i>Текстовые файлы</h6>
+                        <ul class="list-unstyled">
+                            <li>• Простые текстовые дампы</li>
+                            <li>• Экспорт сообщений в TXT</li>
+                            <li>• Кодировка: UTF-8</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Боковая панель -->
+    <div class="col-lg-4">
+        <!-- Статистика -->
+        <div class="card stats-card shadow-sm mb-4">
+            <div class="card-body text-center">
+                <i class="fas fa-chart-bar fa-3x mb-3"></i>
+                <h4>Мощный анализ</h4>
+                <p class="mb-0">Глубокий анализ контента с интерактивными графиками и детальной статистикой</p>
+            </div>
+        </div>
+
+        <!-- Возможности -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-magic me-2"></i>
+                    Возможности анализа
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-2">
+                    <i class="fas fa-clock text-primary me-2"></i>
+                    <small>Анализ активности по времени</small>
+                </div>
+                <div class="d-flex align-items-center mb-2">
+                    <i class="fas fa-comment text-success me-2"></i>
+                    <small>Частотный анализ слов</small>
+                </div>
+                <div class="d-flex align-items-center mb-2">
+                    <i class="fas fa-heart text-danger me-2"></i>
+                    <small>Анализ тональности</small>
+                </div>
+                <div class="d-flex align-items-center mb-2">
+                    <i class="fas fa-chart-pie text-warning me-2"></i>
+                    <small>Статистика сообщений</small>
+                </div>
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-download text-info me-2"></i>
+                    <small>Экспорт результатов</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Последние отчеты -->
+        {% if recent_reports %}
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-history me-2"></i>
+                    Последние анализы
+                </h5>
+            </div>
+            <div class="card-body">
+                {% for report in recent_reports[:5] %}
+                <div class="report-card p-2 mb-2 rounded">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="flex-grow-1">
+                            <h6 class="mb-1">{{ report.channel_name[:30] }}...</h6>
+                            <small class="text-muted">
+                                <i class="fas fa-file me-1"></i>
+                                {{ report.filename[:20] }}...
+                            </small>
+                            <br>
+                            <small class="text-muted">
+                                <i class="fas fa-message me-1"></i>
+                                {{ "{:,}".format(report.messages_count) }} сообщений
+                            </small>
+                        </div>
+                        <div class="text-end">
+                            <a href="{{ url_for('view_report', analysis_id=report.id) }}" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+
+                {% if recent_reports|length > 5 %}
+                <div class="text-center mt-2">
+                    <button class="btn btn-sm btn-outline-secondary" onclick="loadReports()">
+                        Показать все
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function showFileInfo(input) {
+    const fileInfo = document.querySelector('.file-info');
+    const uploadBtn = document.getElementById('uploadBtn');
+
+    if (input.files && input.files[0]) {
+        const file = input.files[0];
+        const fileSize = (file.size / 1024 / 1024).toFixed(2); // MB
+
+        fileInfo.innerHTML = `
+            <div class="d-flex align-items-center">
+                <i class="fas fa-file-alt me-2"></i>
+                <div class="flex-grow-1">
+                    <strong>${file.name}</strong><br>
+                    <small class="text-muted">Размер: ${fileSize} MB</small>
+                </div>
+                <div>
+                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="clearFile()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+        fileInfo.style.display = 'block';
+        uploadBtn.disabled = false;
+    } else {
+        fileInfo.style.display = 'none';
+        uploadBtn.disabled = true;
+    }
+}
+
+function clearFile() {
+    const fileInput = document.getElementById('file');
+    const fileInfo = document.querySelector('.file-info');
+    const uploadBtn = document.getElementById('uploadBtn');
+
+    fileInput.value = '';
+    fileInfo.style.display = 'none';
+    uploadBtn.disabled = true;
+}
+
+// Обработка отправки формы
+document.getElementById('uploadForm').addEventListener('submit', function(e) {
+    const progressContainer = document.querySelector('.progress-container');
+    const uploadBtn = document.getElementById('uploadBtn');
+
+    // Показываем прогресс
+    progressContainer.style.display = 'block';
+    uploadBtn.disabled = true;
+    uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Загрузка...';
+
+    // Симуляция прогресса (реальный прогресс можно добавить через WebSocket)
+    let progress = 0;
+    const progressBar = document.querySelector('.progress-bar');
+    const interval = setInterval(() => {
+        progress += Math.random() * 10;
+        if (progress > 90) progress = 90;
+        progressBar.style.width = progress + '%';
+    }, 200);
+
+    // Очистим интервал при переходе на другую страницу
+    setTimeout(() => clearInterval(interval), 5000);
+});
+</script>
+{% endblock %}
