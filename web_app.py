@@ -1,6 +1,7 @@
 """
 Веб-интерфейс для анализа телеграм дампов
 Поддерживает загрузку файлов, анализ и просмотр результатов с интерактивными графиками
+Использует продвинутый анализатор с современными методами NLP
 """
 
 import os
@@ -11,7 +12,7 @@ from flask import Flask, request, render_template, jsonify, send_file, redirect,
 from werkzeug.utils import secure_filename
 import plotly.graph_objs as go
 import plotly.utils
-from telegram_analyzer_web import TelegramAnalyzer
+from working_telegram_analyzer import SimplifiedTelegramAnalyzer
 import pandas as pd
 
 app = Flask(__name__)
@@ -145,7 +146,7 @@ def api_analyze():
 
     try:
         # Инициализируем анализатор
-        analyzer = TelegramAnalyzer()
+        analyzer = SimplifiedTelegramAnalyzer()
 
         # Загружаем данные в зависимости от типа файла
         file_extension = filename.lower().split('.')[-1]
@@ -202,15 +203,19 @@ def api_analyze():
                 'error': 'В файле н�� найдено сообщений для анализа'
             }), 400
 
-        # Проводим анализ
-        analysis_results = analyzer.analyze_messages(adapted_data)
+        # Проводим комплексный анализ
+        analysis_results = analyzer.analyze_comprehensive(raw_data)
+
+        # Создаем отчет для Telegram
+        telegram_report = analyzer.generate_telegram_report(analysis_results)
 
         # Добавляем метаданные
         analysis_results.update({
             'analysis_id': analysis_id,
             'original_filename': original_filename,
             'analysis_timestamp': datetime.now().isoformat(),
-            'file_size_bytes': os.path.getsize(filepath)
+            'file_size_bytes': os.path.getsize(filepath),
+            'telegram_report': telegram_report
         })
 
         # Сохраняем результаты
@@ -259,77 +264,148 @@ def view_report(analysis_id):
         return redirect(url_for('index'))
 
 def create_interactive_charts(report_data):
-    """Создает интерактивные графики для отчета"""
+    """Создает интерактивные графики для отчета с новой структурой данных"""
     charts = {}
 
     try:
-        # График активности по времени
-        if 'time_analysis' in report_data:
-            time_data = report_data['time_analysis']
+        # График частотного анализа слов
+        if 'frequency_analysis' in report_data:
+            freq_data = report_data['frequency_analysis']
 
-            # График активности по часам
-            if 'hourly_distribution' in time_data:
-                hours = list(range(24))
-                counts = [time_data['hourly_distribution'].get(str(h), 0) for h in hours]
+            if 'top_words' in freq_data and freq_data['top_words']:
+                top_words = freq_data['top_words'][:20]
+                words = [item[0] for item in top_words]
+                counts = [item[1] for item in top_words]
 
                 fig = go.Figure()
                 fig.add_trace(go.Bar(
-                    x=hours,
-                    y=counts,
-                    name='Сообщения по часам',
-                    marker_color='rgba(55, 128, 191, 0.7)',
-                    hovertemplate='Час: %{x}<br>Сообщени��: %{y}<extra></extra>'
+                    y=words[::-1],  # Переворачиваем для горизонтального отображения
+                    x=counts[::-1],
+                    orientation='h',
+                    marker_color='rgba(255, 127, 14, 0.7)',
+                    hovertemplate='Слово: %{y}<br>Частота: %{x}<extra></extra>'
                 ))
 
                 fig.update_layout(
-                    title='Активность по часам дня',
-                    xaxis_title='Час дня',
-                    yaxis_title='Количество сообщений',
+                    title='Топ-20 наиболее частых слов',
+                    xaxis_title='Частота использования',
+                    yaxis_title='Слова',
+                    template='plotly_white',
+                    height=600
+                )
+
+                charts['frequency_words'] = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
+
+            # График биграмм
+            if 'top_bigrams' in freq_data and freq_data['top_bigrams']:
+                top_bigrams = freq_data['top_bigrams'][:15]
+                bigrams = [item[0] for item in top_bigrams]
+                counts = [item[1] for item in top_bigrams]
+
+                fig = go.Figure()
+                fig.add_trace(go.Bar(
+                    y=bigrams[::-1],
+                    x=counts[::-1],
+                    orientation='h',
+                    marker_color='rgba(44, 160, 44, 0.7)',
+                    hovertemplate='Словосочетание: %{y}<br>Частота: %{x}<extra></extra>'
+                ))
+
+                fig.update_layout(
+                    title='Топ-15 словосочетаний',
+                    xaxis_title='Частота использования',
+                    yaxis_title='Словосочетания',
+                    template='plotly_white',
+                    height=500
+                )
+
+                charts['bigrams'] = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
+
+        # График анализа тональности
+        if 'sentiment_analysis' in report_data and report_data['sentiment_analysis']:
+            sentiment_data = report_data['sentiment_analysis']
+
+            # Подсчитываем распределение тональности
+            sentiment_counts = {}
+            for item in sentiment_data:
+                sentiment = item.get('overall', 'neutral')
+                sentiment_counts[sentiment] = sentiment_counts.get(sentiment, 0) + 1
+
+            if sentiment_counts:
+                # Переводим названия на русский
+                sentiment_labels = {
+                    'positive': 'Позитивные',
+                    'negative': 'Негативные',
+                    'neutral': 'Нейтральные',
+                    'skip': 'Пропущенные',
+                    'speech': 'Речевые'
+                }
+
+                labels = [sentiment_labels.get(k, k.title()) for k in sentiment_counts.keys()]
+                values = list(sentiment_counts.values())
+                colors = ['rgba(44, 160, 44, 0.7)', 'rgba(214, 39, 40, 0.7)',
+                         'rgba(128, 128, 128, 0.7)', 'rgba(255, 193, 7, 0.7)',
+                         'rgba(54, 162, 235, 0.7)']
+
+                fig = go.Figure()
+                fig.add_trace(go.Pie(
+                    labels=labels,
+                    values=values,
+                    hole=0.3,
+                    marker_colors=colors[:len(labels)],
+                    hovertemplate='Тип: %{label}<br>Количество: %{value}<br>Процент: %{percent}<extra></extra>'
+                ))
+
+                fig.update_layout(
+                    title='Распределение тональности сообщений',
                     template='plotly_white'
                 )
 
-                charts['hourly_activity'] = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
+                charts['sentiment'] = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
 
-        # График топ слов
-        if 'word_analysis' in report_data and 'top_words' in report_data['word_analysis']:
-            top_words = report_data['word_analysis']['top_words'][:20]
-            words = [item[0] for item in top_words]
-            counts = [item[1] for item in top_words]
+        # График тематического моделирования
+        if 'topic_modeling' in report_data and report_data['topic_modeling']:
+            topic_data = report_data['topic_modeling']
 
-            fig = go.Figure()
-            fig.add_trace(go.Bar(
-                y=words[::-1],  # Переворачиваем для горизонтального отображения
-                x=counts[::-1],
-                orientation='h',
-                marker_color='rgba(255, 127, 14, 0.7)',
-                hovertemplate='Слово: %{y}<br>Частота: %{x}<extra></extra>'
-            ))
+            if 'topics' in topic_data and topic_data['topics']:
+                topics = topic_data['topics']
 
-            fig.update_layout(
-                title='Топ-20 наиболее частых слов',
-                xaxis_title='Частота использования',
-                yaxis_title='Слова',
-                template='plotly_white',
-                height=600
-            )
+                # Создаем график для каждой темы (только первые 3 темы для читаемости)
+                for i, topic in enumerate(topics[:3]):
+                    words = topic['words'][:8]  # Топ-8 слов для каждой темы
+                    weights = topic['weights'][:8]
 
-            charts['top_words'] = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
+                    fig = go.Figure()
+                    fig.add_trace(go.Bar(
+                        x=weights,
+                        y=words,
+                        orientation='h',
+                        marker_color=f'rgba({50 + i * 70}, {100 + i * 50}, {200 - i * 30}, 0.7)',
+                        hovertemplate='Слово: %{y}<br>Вес: %{x:.3f}<extra></extra>'
+                    ))
 
-        # График длины сообщений
-        if 'message_stats' in report_data:
-            stats = report_data['message_stats']
+                    fig.update_layout(
+                        title=f'Тема {i + 1}: {topic.get("description", "Без описания")}',
+                        xaxis_title='Вес слова в теме',
+                        yaxis_title='Слова',
+                        template='plotly_white',
+                        height=400
+                    )
 
-            # С��здаем гистограмму длин сообщений (если есть детальные данные)
-            fig = go.Figure()
+                    charts[f'topic_{i + 1}'] = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
 
-            # Добавляем показатели как bar chart
-            metrics = ['Среднее', 'Медиана', 'Максимум']
+        # График базовой статистики
+        if 'basic_stats' in report_data:
+            stats = report_data['basic_stats']
+
+            metrics = ['Всего сообщений', 'Текстовых сообщений', 'Средняя длина']
             values = [
-                stats.get('average_length', 0),
-                stats.get('median_length', 0),
-                stats.get('max_length', 0)
+                stats.get('total_messages', 0),
+                stats.get('total_texts', 0),
+                int(stats.get('avg_message_length', 0))
             ]
 
+            fig = go.Figure()
             fig.add_trace(go.Bar(
                 x=metrics,
                 y=values,
@@ -338,43 +414,52 @@ def create_interactive_charts(report_data):
             ))
 
             fig.update_layout(
-                title='Статистика длины сообщений',
+                title='Основная статистика канала',
                 xaxis_title='Метрики',
-                yaxis_title='Количество символов',
+                yaxis_title='Значения',
                 template='plotly_white'
             )
 
-            charts['message_length'] = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
+            charts['basic_stats'] = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
 
-        # График тональности (если есть)
-        if 'sentiment_analysis' in report_data:
-            sentiment = report_data['sentiment_analysis']
+        # График связанности слов (если есть данные о графе)
+        if 'word_connections' in report_data and report_data['word_connections']:
+            conn_data = report_data['word_connections']
 
-            labels = ['Позитивные', 'Нейтральные', 'Негативные']
-            values = [
-                sentiment.get('positive_count', 0),
-                sentiment.get('neutral_count', 0),
-                sentiment.get('negative_count', 0)
-            ]
+            if 'centrality' in conn_data and conn_data['centrality']:
+                centrality = conn_data['centrality']
 
-            fig = go.Figure()
-            fig.add_trace(go.Pie(
-                labels=labels,
-                values=values,
-                hole=0.3,
-                marker_colors=['rgba(44, 160, 44, 0.7)', 'rgba(128, 128, 128, 0.7)', 'rgba(214, 39, 40, 0.7)'],
-                hovertemplate='Тип: %{label}<br>Количество: %{value}<br>Процент: %{percent}<extra></extra>'
-            ))
+                if 'degree' in centrality:
+                    # Топ-15 слов по центральности
+                    top_central = sorted(centrality['degree'].items(),
+                                       key=lambda x: x[1], reverse=True)[:15]
 
-            fig.update_layout(
-                title='Распределение тональности сообщений',
-                template='plotly_white'
-            )
+                    words = [item[0] for item in top_central]
+                    scores = [item[1] for item in top_central]
 
-            charts['sentiment'] = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
+                    fig = go.Figure()
+                    fig.add_trace(go.Bar(
+                        y=words[::-1],
+                        x=scores[::-1],
+                        orientation='h',
+                        marker_color='rgba(156, 39, 176, 0.7)',
+                        hovertemplate='Слово: %{y}<br>Центральность: %{x:.3f}<extra></extra>'
+                    ))
+
+                    fig.update_layout(
+                        title='Ключевые слова по связанности',
+                        xaxis_title='Коэффициент центральности',
+                        yaxis_title='Слова',
+                        template='plotly_white',
+                        height=500
+                    )
+
+                    charts['word_centrality'] = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
 
     except Exception as e:
         print(f"Ошибка при создании графиков: {e}")
+        import traceback
+        traceback.print_exc()
 
     return charts
 
@@ -409,6 +494,57 @@ def download_report(analysis_id):
         return redirect(url_for('index'))
 
     return send_file(report_path, as_attachment=True, download_name=f"telegram_analysis_{analysis_id}.json")
+
+@app.route('/telegram_report/<analysis_id>')
+def get_telegram_report(analysis_id):
+    """Получение отчета в формате для Telegram"""
+    report_path = os.path.join(REPORTS_FOLDER, f"{analysis_id}.json")
+
+    if not os.path.exists(report_path):
+        return jsonify({'error': 'Отчет не найден'}), 404
+
+    try:
+        with open(report_path, 'r', encoding='utf-8') as f:
+            report_data = json.load(f)
+
+        telegram_report = report_data.get('telegram_report', 'Отчет не найден')
+
+        return jsonify({
+            'telegram_report': telegram_report,
+            'analysis_id': analysis_id,
+            'formatted_for_telegram': True
+        })
+
+    except Exception as e:
+        return jsonify({'error': f'Ошибка при получении отчета: {str(e)}'}), 500
+
+@app.route('/download_telegram/<analysis_id>')
+def download_telegram_report(analysis_id):
+    """Скачивание отчета в текстовом формате для Telegram"""
+    report_path = os.path.join(REPORTS_FOLDER, f"{analysis_id}.json")
+
+    if not os.path.exists(report_path):
+        flash('Отчет не найден', 'error')
+        return redirect(url_for('index'))
+
+    try:
+        with open(report_path, 'r', encoding='utf-8') as f:
+            report_data = json.load(f)
+
+        telegram_report = report_data.get('telegram_report', 'Отчет не найден')
+
+        # Создаем временный файл с отчетом
+        txt_filename = f"telegram_report_{analysis_id}.txt"
+        txt_path = os.path.join(TEMP_FOLDER, txt_filename)
+
+        with open(txt_path, 'w', encoding='utf-8') as f:
+            f.write(telegram_report)
+
+        return send_file(txt_path, as_attachment=True, download_name=txt_filename)
+
+    except Exception as e:
+        flash(f'Ошибка при создании отчета: {str(e)}', 'error')
+        return redirect(url_for('index'))
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

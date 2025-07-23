@@ -1,32 +1,58 @@
+# Основные библиотеки
 pandas>=1.5.0
 numpy>=1.21.0
 matplotlib>=3.5.0
 seaborn>=0.11.0
 scikit-learn>=1.1.0
-nltk>=3.7
-pymorphy2>=0.9.1
-pymorphy2-dicts-ru>=2.4.0
-wordcloud>=1.9.0
-textblob>=0.17.0
-dostoevsky>=0.6.0
-fasttext>=0.9.0
-tqdm>=4.64.0
-jupyter>=1.0.0
 flask>=2.3.0
 flask-cors>=4.0.0
 plotly>=5.17.0
-dash>=2.14.0
-dash-bootstrap-components>=1.5.0
 gunicorn>=21.2.0
 werkzeug>=2.3.0
-# Дополнительные библиотеки для расширенного анализа
-gensim>=4.3.0
+
+# NLP библиотеки для русского языка
+nltk>=3.8
+pymorphy2>=0.9.1
+pymorphy2-dicts-ru>=2.4.0
+natasha>=1.6.0
+navec>=0.10.0
+slovnet>=0.6.0
+razdel>=0.5.0
+dostoevsky>=0.6.0
+textblob>=0.17.0
 spacy>=3.7.0
-networkx>=3.2.0
-pyLDAvis>=3.4.0
+
+# Анализ тональности
 vaderSentiment>=3.3.2
-textstat>=0.7.0
-stopwords>=1.0.0
-emoji>=2.8.0
 transformers>=4.35.0
 torch>=2.1.0
+
+# Тематическое моделирование
+gensim>=4.3.0
+pyLDAvis>=3.4.0
+bertopic>=0.15.0
+
+# Визуализация и графы
+wordcloud>=1.9.0
+networkx>=3.2.0
+igraph>=0.10.0
+plotly>=5.17.0
+dash>=2.14.0
+dash-bootstrap-components>=1.5.0
+kaleido>=0.2.1
+
+# Стоп-слова и дополнительные инструменты
+stop-words>=2018.7.23
+textstat>=0.7.0
+emoji>=2.8.0
+tqdm>=4.64.0
+pymorphy2>=0.9.1
+pymystem3>=0.2.0
+
+# Jupyter для разработки
+jupyter>=1.0.0
+
+# Дополнительные библиотеки для анализа
+umap-learn>=0.5.0
+hdbscan>=0.8.0
+langdetect>=1.0.9
